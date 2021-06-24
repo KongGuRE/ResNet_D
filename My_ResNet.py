@@ -380,7 +380,7 @@ if __name__ == '__main__':
     device = 'cuda'
     net = ResNet18()
     pretrained_dict = torch.load(r'C:\pyResNet\checkpoint\resnet18.pt')
-    net.load_state_dict(pretrained_dict['net'])
+    net.load_state_dict(pretrained_dict)
     net.eval()
 
     net = net.to(device)

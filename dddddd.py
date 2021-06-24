@@ -368,8 +368,8 @@ num = 0
 #         print("숫자를 입력")
 #         print("data SET 변경 : datanumber")
 
-datanumber = input("Data number InPut :")
-images, labels = dataset_test[int(datanumber)]
+
+images, labels = dataset_test[0]
 images = images.cuda()
 labels = labels.cuda()
 outputs, f = net(images)
@@ -379,10 +379,9 @@ _, predicted = torch.max(outputs, 1)
 classes = ('0', '1')
 params = list(net.parameters())
 
-RGBimg_Test_origin = torch.tensor(RGBimg_Test_origin)
-RGBimg_Test_origin = RGBimg_Test_origin / 255
-# RGBimg_Test_origin -= RGBimg_Test_origin.min(1, keepdim=True)[0]
-# RGBimg_Test_origin /= RGBimg_Test_origin.max(1, keepdim=True)[0]
+images = torch.tensor(images)
+images = images / 255
+
 import time
 
 for num in range(len(labels)):
@@ -395,9 +394,9 @@ for num in range(len(labels)):
     # RGBimg_Test_origin[num] = F.normalize((RGBimg_Test_origin[num]))
     # RGBimg_Test_origin[num] = RGBimg_Test_origin[num].view(RGBimg_Test_origin[num].size(0),-1)
     # imshow(images[num].cpu())
-    imshow((RGBimg_Test_origin[num]).cpu())
-    skimage.transform.resize(overlay, [512, 512])
-    plt.imshow(skimage.transform.resize(overlay, [512, 512]), alpha=0.3, cmap='jet')
+    imshow((images[num]).cpu())
+    skimage.transform.resize(overlay, [256, 256])
+    plt.imshow(skimage.transform.resize(overlay, [256, 256]), alpha=0.3, cmap='jet')
     plt.show()
 
 # print(list(labels.cpu().numpy()).index(1))
