@@ -10,6 +10,7 @@ import torch.optim as optim
 import skimage.transform
 from torch.autograd import Variable
 
+
 # from torchinfo import summary
 
 # ResNet18 BasicBlock class
@@ -79,7 +80,9 @@ class ResNet(nn.Module):
         features = self.layer3(features)
         features = self.layer4(features)
 
-        out = F.avg_pool2d(features, 4)
+        out = F.avg_pool2d(features, 32)
+        a = out.size(0)
+        b = out.view(out.size(0), -1)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
         return out, features
@@ -88,7 +91,6 @@ class ResNet(nn.Module):
 # ResNet18
 def ResNet18():
     return ResNet(BasicBlock, [2, 2, 2, 2])
-
 
 def train(epoch):
     print('\n[ Train epoch: %d ]' % epoch)
@@ -119,14 +121,15 @@ def train(epoch):
 
     print('\nTotal benign train accuarcy:', 100. * correct / total)
     print('Total benign train loss:', train_loss)
-
-    state = {
-        'net': net.state_dict()
-    }
+    #
+    # state = {
+    #     'net': net.state_dict()
+    # }
     if not os.path.isdir('checkpoint'):
         os.mkdir('checkpoint')
     file_name = 'resnet18.pt'
-    torch.save(state, './checkpoint/' + file_name)
+    torch.save(net.state_dict(), './checkpoint/' + file_name)
+    # torch.save(state, './checkpoint/' + file_name)
     print('net Saved!')
 
 def test(epoch):
@@ -166,6 +169,15 @@ def adjust_learning_rate(optimizer, epoch):
 
 if __name__ == '__main__':
 
+
+    # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # net = ResNet18()
+    # net = net.to(device)
+    # x = torch.randn(5, 3, 256, 256).to(device)
+    # output = net(x)
+    # print(output.size())
+
+#
     # Userdata input train
     NG_Crack_data_names = []
     OK_data_names = []
@@ -187,7 +199,7 @@ if __name__ == '__main__':
     OK_data_names = OK_data_names
     NG_Crack_data_names = NG_Crack_data_names
     print((len(OK_data_names) + len(NG_Crack_data_names)))
-    RGBimg_train = np.zeros(((len(OK_data_names) + len(NG_Crack_data_names)), 3, 32, 32))  # 624, 3, 512, 512
+    RGBimg_train = np.zeros(((len(OK_data_names) + len(NG_Crack_data_names)), 3, 256, 256))  # 624, 3, 512, 512
     labelimgOK = np.zeros((len(OK_data_names)))
     labelimgNG = np.ones((len(NG_Crack_data_names)))
     labelimg_train = np.zeros((len(OK_data_names) + len(NG_Crack_data_names)))
@@ -200,8 +212,8 @@ if __name__ == '__main__':
         coloredImg = cv2.imread(imgFile)
         # IMG Downsampling
         coloredImg = cv2.pyrDown(coloredImg)
-        for a in range(3):
-            coloredImg = cv2.pyrDown(coloredImg)
+        # for a in range(3):
+        #     coloredImg = cv2.pyrDown(coloredImg)
 
         # cv2.imshow('gray_image', coloredImg)
         # cv2.waitKey(0)
@@ -225,8 +237,8 @@ if __name__ == '__main__':
 
         # IMG Downsampling
         coloredImg = cv2.pyrDown(coloredImg)
-        for a in range(3):
-            coloredImg = cv2.pyrDown(coloredImg)
+        # for a in range(3):
+        #     coloredImg = cv2.pyrDown(coloredImg)
 
         # IMG split
         b, g, r = cv2.split(coloredImg)
@@ -246,7 +258,7 @@ if __name__ == '__main__':
     labelimg_train = torch.from_numpy(labelimg_train)
 
     print("mk dataset")
-    batch_size = 50
+    batch_size = 10
     print(RGBimg_train.size())
     print(int(RGBimg_train.size()[0] / batch_size))
 
@@ -278,7 +290,7 @@ if __name__ == '__main__':
     OK_data_names = OK_data_names
     NG_Crack_data_names = NG_Crack_data_names
     print((len(OK_data_names) + len(NG_Crack_data_names)))
-    RGBimg_Test = np.zeros(((len(OK_data_names) + len(NG_Crack_data_names)), 3, 32, 32))  # 624, 3, 32, 32
+    RGBimg_Test = np.zeros(((len(OK_data_names) + len(NG_Crack_data_names)), 3, 256, 256))  # 624, 3, 32, 32
     RGBimg_Test_origin = np.zeros(((len(OK_data_names) + len(NG_Crack_data_names)), 3, 512, 512))  # 624, 3, 512, 512
     labelimgOK = np.zeros((len(OK_data_names)))
     labelimgNG = np.ones((len(NG_Crack_data_names)))
@@ -292,8 +304,8 @@ if __name__ == '__main__':
         coloredImg_origin = cv2.imread(imgFile)
         # IMG Downsampling
         coloredImg = cv2.pyrDown(coloredImg_origin)
-        for a in range(3):
-            coloredImg = cv2.pyrDown(coloredImg)
+        # for a in range(3):
+        #     coloredImg = cv2.pyrDown(coloredImg)
 
         # cv2.imshow('gray_image', coloredImg)
         # cv2.waitKey(0)
@@ -321,8 +333,8 @@ if __name__ == '__main__':
 
         # IMG Downsampling
         coloredImg = cv2.pyrDown(coloredImg_origin)
-        for a in range(3):
-            coloredImg = cv2.pyrDown(coloredImg)
+        # for a in range(3):
+        #     coloredImg = cv2.pyrDown(coloredImg)
 
         # IMG split
         b, g, r = cv2.split(coloredImg_origin)
@@ -349,8 +361,8 @@ if __name__ == '__main__':
     RGBimg_Test = torch.from_numpy(RGBimg_Test)
     labelimg_Test = torch.from_numpy(labelimg_Test)
 
+    batch_size = 10
     print("mk dataset")
-    batch_size = 50
     print(RGBimg_Test.size())
     print(int(RGBimg_Test.size()[0] / batch_size))
 
@@ -366,23 +378,27 @@ if __name__ == '__main__':
 
     # test
     device = 'cuda'
-
     net = ResNet18()
+    pretrained_dict = torch.load(r'C:\pyResNet\checkpoint\resnet18.pt')
+    net.load_state_dict(pretrained_dict['net'])
+    net.eval()
+
     net = net.to(device)
     # net = torch.nn.DataParallel(net)
     cudnn.benchmark = True
     torch.device(device)
 
-    learning_rate = 0.1
+    learning_rate = 0.01
     # file_name = 'resne
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(net.parameters(), lr=learning_rate, momentum=0.9, weight_decay=0.0002)
+
 
     # for epoch in range(0, 200):
     for epoch in range(0, 200):
         adjust_learning_rate(optimizer, epoch)
         train(epoch)
-        test(epoch)
+        # test(epoch)
 
 #================================================================================
 
@@ -411,7 +427,7 @@ if __name__ == '__main__':
     for num in range(10):
         print("ANS :", classes[int(predicted[num])], " REAL :", classes[int(labels[num])], num)
         # print(outputs[0])
-        overlay = params[-2][int(predicted[num])].matmul(f[num].reshape(512, 16)).reshape(4, 4).cpu().data.numpy()
+        overlay = params[-2][int(predicted[num])].matmul(f[num].reshape(256, 16)).reshape(4, 4).cpu().data.numpy()
         # overlay = params[-2][int(predicted[num])].matmul(f[num].reshape(256, 64)).reshape(8, 8).cpu().data.numpy()
         # overlay = overlay - np.min(overlay)
         # overlay = overlay / np.max(overlay)
@@ -424,3 +440,4 @@ if __name__ == '__main__':
         plt.show()
 
     # print(list(labels.cpu().numpy()).index(1))
+
