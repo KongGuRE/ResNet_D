@@ -14,3 +14,5 @@ test.txt
 
 ##folder ignore
 data/
+Test/
+Train/
