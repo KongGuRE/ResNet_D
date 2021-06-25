@@ -90,19 +90,6 @@ def ResNet18():
 # ---------------------------------------------------------------------------------------------------------------------------------------------
     # Userdata input Test
 # ---------------------------------------------------------------------------------------------------------------------------------------------
-device = "cuda"
-net = ResNet18()
-net.load_state_dict(torch.load(r'C:\pyResNet\checkpoint\resnet18.pt'))
-net.eval()
-net = net.to(device)
-
-# device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-# net = ResNet18()
-# net = net.to(device)
-# x = torch.randn(5, 3, 256, 256).to(device)
-# output = net(x)
-# print(output.size())
-
 ## Userdata input train
 NG_Crack_data_names = []
 OK_data_names = []

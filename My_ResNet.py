@@ -8,6 +8,8 @@ import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
 import torch.optim as optim
 import skimage.transform
+import math
+from tqdm import tqdm, trange
 from torch.autograd import Variable
 
 
@@ -81,8 +83,6 @@ class ResNet(nn.Module):
         features = self.layer4(features)
 
         out = F.avg_pool2d(features, 32)
-        a = out.size(0)
-        b = out.view(out.size(0), -1)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
         return out, features
@@ -92,14 +92,17 @@ class ResNet(nn.Module):
 def ResNet18():
     return ResNet(BasicBlock, [2, 2, 2, 2])
 
+
 def train(epoch):
-    print('\n[ Train epoch: %d ]' % epoch)
+    # print('\n[ Train epoch: %d ]' % epoch)
+    print('\n')
     net.train()
     train_loss = 0
     correct = 0
     total = 0
     for batch_idx, (inputs, targets) in enumerate(dataset_train):
-        targets = torch.tensor(targets, dtype=torch.long, device=device)
+        # targets = torch.tensor(targets, dtype=torch.long, device=device)
+        # targets.requires_grad = True
         inputs, targets = inputs.to(device), targets.to(device)
         optimizer.zero_grad()
 
@@ -115,11 +118,11 @@ def train(epoch):
         correct += predicted.eq(targets).sum().item()
 
         if batch_idx % 10 == 0:
-            print('\nCurrent batch:', str(batch_idx))
-            print('Current benign train accuracy:', str(predicted.eq(targets).sum().item() / targets.size(0)))
-            print('Current benign train loss:', loss.item())
+            print('batch:', str(batch_idx),
+                  'train accuracy:', str(predicted.eq(targets).sum().item() / targets.size(0)),
+                  'train loss:', loss.item(), end='\r', flush=True)
 
-    print('\nTotal benign train accuarcy:', 100. * correct / total)
+    print('Total benign train accuarcy:', 100. * correct / total)
     print('Total benign train loss:', train_loss)
     #
     # state = {
@@ -130,17 +133,18 @@ def train(epoch):
     file_name = 'resnet18.pt'
     torch.save(net.state_dict(), './checkpoint/' + file_name)
     # torch.save(state, './checkpoint/' + file_name)
-    print('net Saved!')
+    # print('net Saved!')
+
 
 def test(epoch):
-    print('\n[ Test epoch: %d ]' % epoch)
     net.eval()
     loss = 0
     correct = 0
     total = 0
 
     for batch_idx, (inputs, targets) in enumerate(dataset_test):
-        targets = torch.tensor(targets, dtype=torch.long, device=device)
+        # targets = torch.tensor(targets, type=torch.long, device=device)
+        # targets.requires_grad = True
         # print(inputs.size())
         # print(targets.size())
         inputs, targets = inputs.to(device), targets.to(device)
@@ -152,10 +156,8 @@ def test(epoch):
         _, predicted = outputs.max(1)
         correct += predicted.eq(targets).sum().item()
 
-    print('\nTest accuarcy:', 100. * correct / total)
+    print('Test accuarcy:', 100. * correct / total)
     print('Test average loss:', loss / total)
-
-
 
 
 def adjust_learning_rate(optimizer, epoch):
@@ -167,47 +169,38 @@ def adjust_learning_rate(optimizer, epoch):
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
+
 if __name__ == '__main__':
 
-
-    # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    # net = ResNet18()
-    # net = net.to(device)
-    # x = torch.randn(5, 3, 256, 256).to(device)
-    # output = net(x)
-    # print(output.size())
-
-#
     # Userdata input train
     NG_Crack_data_names = []
     OK_data_names = []
     root_dir = r".\Train"
     for (root, dirs, files) in os.walk(root_dir):
-        print(root)
+        # print(root)
         if root == r".\Train\NG_Crack":
             if len(files) > 0:
                 for file_name in files:
                     NG_Crack_data_names.append(r'.\Train\NG_Crack\\' + file_name)
-                    print(r'.\Train\NG_Crack\\' + file_name)
+                    # print(r'.\Train\NG_Crack\\' + file_name)
 
         if root == r".\Train\OK":
             if len(files) > 0:
                 for file_name in files:
                     OK_data_names.append(r'.\Train\OK\\' + file_name)
-                    print(r'.\Train\OK\\' + file_name)
+                    # print(r'.\Train\OK\\' + file_name)
 
     OK_data_names = OK_data_names
     NG_Crack_data_names = NG_Crack_data_names
-    print((len(OK_data_names) + len(NG_Crack_data_names)))
     RGBimg_train = np.zeros(((len(OK_data_names) + len(NG_Crack_data_names)), 3, 256, 256))  # 624, 3, 512, 512
     labelimgOK = np.zeros((len(OK_data_names)))
     labelimgNG = np.ones((len(NG_Crack_data_names)))
-    labelimg_train = np.zeros((len(OK_data_names) + len(NG_Crack_data_names)))
+    labelimg_train = np.int64(np.zeros((len(OK_data_names) + len(NG_Crack_data_names))))
 
-    labelimg_train[0:(len(OK_data_names))] = labelimgOK
-    labelimg_train[(len(labelimgOK)):] = labelimgNG
+    labelimg_train[0:(len(OK_data_names))] = (labelimgOK)
+    labelimg_train[(len(labelimgOK)):] = (labelimgNG)
 
-    for File_idx, imgFile in enumerate(OK_data_names):
+    for File_idx, imgFile in tqdm(enumerate(OK_data_names), desc="ok Train data"):
         # print("File_idx: ", File_idx)
         coloredImg = cv2.imread(imgFile)
         # IMG Downsampling
@@ -222,15 +215,15 @@ if __name__ == '__main__':
 
         # IMG split
         b, g, r = cv2.split(coloredImg)
-        RGBimg_train[File_idx, 0, :, :] = r
-        RGBimg_train[File_idx, 1, :, :] = g
-        RGBimg_train[File_idx, 2, :, :] = b
+        RGBimg_train[File_idx, 0, :, :] = (r)
+        RGBimg_train[File_idx, 1, :, :] = (g)
+        RGBimg_train[File_idx, 2, :, :] = (b)
 
-        if File_idx % 50 == 0:
-            print('\nCurrent batch:', str(File_idx))
+        # if File_idx % 50 == 0:
+        #     print('\nTrain data:', str(File_idx),end='\r',flush=True)
 
     save_File_idx = File_idx + 1
-    for File_idx, imgFile in enumerate(NG_Crack_data_names):
+    for File_idx, imgFile in tqdm(enumerate(NG_Crack_data_names), desc="NG Train data"):
         num_File_idx = save_File_idx + File_idx
         # print("File_idx: ", File_idx)
         coloredImg = cv2.imread(imgFile)
@@ -242,12 +235,12 @@ if __name__ == '__main__':
 
         # IMG split
         b, g, r = cv2.split(coloredImg)
-        RGBimg_train[num_File_idx, 0, :, :] = r
-        RGBimg_train[num_File_idx, 1, :, :] = g
-        RGBimg_train[num_File_idx, 2, :, :] = b
+        RGBimg_train[num_File_idx, 0, :, :] = (r)
+        RGBimg_train[num_File_idx, 1, :, :] = (g)
+        RGBimg_train[num_File_idx, 2, :, :] = (b)
 
-        if num_File_idx % 50 == 0:
-            print('\nCurrent batch:', str(num_File_idx))
+        # if num_File_idx % 50 == 0:
+        #     print('\nCurrent batch:', str(num_File_idx), end='\r',flush=True)
 
     s = np.arange(labelimg_train.shape[0])
     np.random.shuffle(s)
@@ -257,49 +250,53 @@ if __name__ == '__main__':
     RGBimg_train = torch.from_numpy(RGBimg_train)
     labelimg_train = torch.from_numpy(labelimg_train)
 
-    print("mk dataset")
     batch_size = 10
-    print(RGBimg_train.size())
-    print(int(RGBimg_train.size()[0] / batch_size))
+    # print(RGBimg_train.size())
+    # print(int(RGBimg_train.size()[0] / batch_size))
 
-    dataset_train = list(range(int(RGBimg_train.size()[0] / batch_size)))
-    for a in range(0, int(RGBimg_train.size()[0]) - batch_size, batch_size):
-        # print(int(a / batch_size))
-        dataset_train[int(a / batch_size)] = (RGBimg_train[a:a + batch_size, :, :, :], labelimg_train[a:a + batch_size])
-    print(dataset_train[0][0].size())
+    # dataset_train = list(range(math.ceil(RGBimg_train.size()[0] / batch_size)))
+    # for a in range(0, int(RGBimg_train.size()[0]) - batch_size, batch_size):
+    # dataset_train[int(a / batch_size)] = (RGBimg_train[a:a + batch_size, :, :, :], labelimg_train[a:a + batch_size])
 
-# ---------------------------------------------------------------------------------------------------------------------------------------------
+    dataset_train = list(range(math.ceil(RGBimg_train.size()[0] / batch_size)))
+    for a in tqdm(range(0, math.ceil(RGBimg_train.size()[0] / batch_size)), desc="Train data set :"):
+        dataset_train[a] = (RGBimg_train[a * batch_size:((a + 1) * batch_size) - 1, :, :, :],
+                            labelimg_train[a * batch_size:((a + 1) * batch_size) - 1])
+        # print("a*batch_size: ", a * batch_size, "(a+1)*batch_size)-1: ", ((a + 1) * batch_size) - 1)
+    # print(dataset_train[0][0].size())
+
+    # ---------------------------------------------------------------------------------------------------------------------------------------------
     # Userdata input Test
     NG_Crack_data_names = []
     OK_data_names = []
     root_dir = r".\Test"
     for (root, dirs, files) in os.walk(root_dir):
-        print(root)
+        print(root, end='\r', flush=True)
         if root == r".\Test\NG_Crack":
             if len(files) > 0:
                 for file_name in files:
                     NG_Crack_data_names.append(r'.\Test\NG_Crack\\' + file_name)
-                    print(r'.\Test\NG_Crack\\' + file_name)
+                    # print(r'.\Test\NG_Crack\\' + file_name)
 
         if root == r".\Test\OK":
             if len(files) > 0:
                 for file_name in files:
                     OK_data_names.append(r'.\Test\OK\\' + file_name)
-                    print(r'.\Test\OK\\' + file_name)
+                    # print(r'.\Test\OK\\' + file_name)
 
     OK_data_names = OK_data_names
     NG_Crack_data_names = NG_Crack_data_names
-    print((len(OK_data_names) + len(NG_Crack_data_names)))
+    # print((len(OK_data_names) + len(NG_Crack_data_names)))
     RGBimg_Test = np.zeros(((len(OK_data_names) + len(NG_Crack_data_names)), 3, 256, 256))  # 624, 3, 32, 32
     RGBimg_Test_origin = np.zeros(((len(OK_data_names) + len(NG_Crack_data_names)), 3, 512, 512))  # 624, 3, 512, 512
     labelimgOK = np.zeros((len(OK_data_names)))
     labelimgNG = np.ones((len(NG_Crack_data_names)))
-    labelimg_Test = np.zeros((len(OK_data_names) + len(NG_Crack_data_names)))
+    labelimg_Test = np.int64(np.zeros((len(OK_data_names) + len(NG_Crack_data_names))))
 
     labelimg_Test[0:(len(OK_data_names))] = labelimgOK
     labelimg_Test[(len(labelimgOK)):] = labelimgNG
 
-    for File_idx, imgFile in enumerate(OK_data_names):
+    for File_idx, imgFile in tqdm(enumerate(OK_data_names), desc="ok Test data : "):
         # print("File_idx: ", File_idx)
         coloredImg_origin = cv2.imread(imgFile)
         # IMG Downsampling
@@ -314,19 +311,19 @@ if __name__ == '__main__':
 
         # IMG split
         b, g, r = cv2.split(coloredImg_origin)
-        RGBimg_Test_origin[File_idx, 0, :, :] = r
-        RGBimg_Test_origin[File_idx, 1, :, :] = g
-        RGBimg_Test_origin[File_idx, 2, :, :] = b
+        RGBimg_Test_origin[File_idx, 0, :, :] = (r)
+        RGBimg_Test_origin[File_idx, 1, :, :] = (g)
+        RGBimg_Test_origin[File_idx, 2, :, :] = (b)
         b, g, r = cv2.split(coloredImg)
-        RGBimg_Test[File_idx, 0, :, :] = r
-        RGBimg_Test[File_idx, 1, :, :] = g
-        RGBimg_Test[File_idx, 2, :, :] = b
+        RGBimg_Test[File_idx, 0, :, :] = (r)
+        RGBimg_Test[File_idx, 1, :, :] = (g)
+        RGBimg_Test[File_idx, 2, :, :] = (b)
 
-        if File_idx % 50 == 0:
-            print('\nCurrent batch:', str(File_idx))
+        # if File_idx % 50 == 0:
+        #     print('\nCurrent batch:', str(File_idx),end='\r',flush=True)
 
     save_File_idx = File_idx + 1
-    for File_idx, imgFile in enumerate(NG_Crack_data_names):
+    for File_idx, imgFile in tqdm(enumerate(NG_Crack_data_names), desc="NG Test data"):
         num_File_idx = save_File_idx + File_idx
         # print("File_idx: ", File_idx)
         coloredImg_origin = cv2.imread(imgFile)
@@ -338,19 +335,19 @@ if __name__ == '__main__':
 
         # IMG split
         b, g, r = cv2.split(coloredImg_origin)
-        RGBimg_Test_origin[num_File_idx, 0, :, :] = r
-        RGBimg_Test_origin[num_File_idx, 1, :, :] = g
-        RGBimg_Test_origin[num_File_idx, 2, :, :] = b
+        RGBimg_Test_origin[num_File_idx, 0, :, :] = (r)
+        RGBimg_Test_origin[num_File_idx, 1, :, :] = (g)
+        RGBimg_Test_origin[num_File_idx, 2, :, :] = (b)
         b, g, r = cv2.split(coloredImg)
-        RGBimg_Test[num_File_idx, 0, :, :] = r
-        RGBimg_Test[num_File_idx, 1, :, :] = g
-        RGBimg_Test[num_File_idx, 2, :, :] = b
+        RGBimg_Test[num_File_idx, 0, :, :] = (r)
+        RGBimg_Test[num_File_idx, 1, :, :] = (g)
+        RGBimg_Test[num_File_idx, 2, :, :] = (b)
 
-        if num_File_idx % 50 == 0:
-            print('\nCurrent b'
-                  ''
-                  ''
-                  'atch:', str(num_File_idx))
+        # if num_File_idx % 50 == 0:
+        #     print('\nCurrent b'
+        #           ''
+        #           ''
+        #           'atch:', str(num_File_idx),end='\r',flush=True)
 
     s = np.arange(labelimg_Test.shape[0])
     np.random.shuffle(s)
@@ -361,24 +358,26 @@ if __name__ == '__main__':
     RGBimg_Test = torch.from_numpy(RGBimg_Test)
     labelimg_Test = torch.from_numpy(labelimg_Test)
 
-    batch_size = 10
-    print("mk dataset")
-    print(RGBimg_Test.size())
-    print(int(RGBimg_Test.size()[0] / batch_size))
+    batch_size = 5
 
-    dataset_test = list(range(int(RGBimg_Test.size()[0] / batch_size)))
+    # for a in range(0, int(RGBimg_Test.size()[0]) - batch_size, batch_size):
+    #     print(int(a / batch_size))
+    #     dataset_test[int(a / batch_size)] = (RGBimg_Test[a:a + batch_size, :, :, :], labelimg_Test[a:a + batch_size])
+    # print(dataset_test[0][0].size())
 
-    for a in range(0, int(RGBimg_Test.size()[0]) - batch_size, batch_size):
-        print(int(a / batch_size))
-        dataset_test[int(a / batch_size)] = (RGBimg_Test[a:a + batch_size, :, :, :], labelimg_Test[a:a + batch_size])
-    print(dataset_test[0][0].size())
+    dataset_test = list(range(math.ceil(RGBimg_Test.size()[0] / batch_size)))
+    for a in tqdm(range(0, math.ceil(RGBimg_Test.size()[0] / batch_size)), desc="Test data set :"):
+        dataset_test[a] = (RGBimg_Test[a * batch_size:((a + 1) * batch_size) - 1, :, :, :],
+                           labelimg_Test[a * batch_size:((a + 1) * batch_size) - 1])
+
     dataset_test1 = [RGBimg_Test, labelimg_Test]
 
-# ---------------------------------------------------------------------------------------------------------------------------------------------
+    # ---------------------------------------------------------------------------------------------------------------------------------------------
 
     # test
     device = 'cuda'
     net = ResNet18()
+
     pretrained_dict = torch.load(r'C:\pyResNet\checkpoint\resnet18.pt')
     net.load_state_dict(pretrained_dict)
     net.eval()
@@ -388,24 +387,25 @@ if __name__ == '__main__':
     cudnn.benchmark = True
     torch.device(device)
 
-    learning_rate = 0.01
+    learning_rate = 0.001
     # file_name = 'resne
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(net.parameters(), lr=learning_rate, momentum=0.9, weight_decay=0.0002)
 
-
     # for epoch in range(0, 200):
-    for epoch in range(0, 200):
+    for epoch in trange((200), desc="epoch"):
         adjust_learning_rate(optimizer, epoch)
         train(epoch)
-        # test(epoch)
+        test(epoch)
 
-#================================================================================
+
+    # ================================================================================
 
     def imshow(img):
         # img = img / 2 + 0.5  # unnormalize
         npimg = img.numpy()
         plt.imshow(np.transpose(npimg, (1, 2, 0)))
+
 
     # for data in dataset_test1:
     images, labels = dataset_test1
@@ -414,16 +414,17 @@ if __name__ == '__main__':
     outputs, f = net(images)
 
     _, predicted = torch.max(outputs, 1)
-        # break
+    # break
 
-    classes = ('0','1')
+    classes = ('0', '1')
     params = list(net.parameters())
     num = 0
     RGBimg_Test_origin = torch.tensor(RGBimg_Test_origin)
-    RGBimg_Test_origin = RGBimg_Test_origin/255
+    RGBimg_Test_origin = RGBimg_Test_origin / 255
     # RGBimg_Test_origin -= RGBimg_Test_origin.min(1, keepdim=True)[0]
     # RGBimg_Test_origin /= RGBimg_Test_origin.max(1, keepdim=True)[0]
     import time
+
     for num in range(10):
         print("ANS :", classes[int(predicted[num])], " REAL :", classes[int(labels[num])], num)
         # print(outputs[0])
@@ -440,4 +441,3 @@ if __name__ == '__main__':
         plt.show()
 
     # print(list(labels.cpu().numpy()).index(1))
-
