@@ -10,6 +10,7 @@ import torch.optim as optim
 import skimage.transform
 from pynput import keyboard
 
+
 class BasicBlock(nn.Module):
     def __init__(self, inplanes: int, planes: int, stride: int = 1):
         super(BasicBlock, self).__init__()
@@ -87,8 +88,10 @@ class ResNet(nn.Module):
 # ResNet18
 def ResNet18():
     return ResNet(BasicBlock, [2, 2, 2, 2])
+
+
 # ---------------------------------------------------------------------------------------------------------------------------------------------
-    # Userdata input Test
+# Userdata input Test
 # ---------------------------------------------------------------------------------------------------------------------------------------------
 ## Userdata input train
 NG_Crack_data_names = []
@@ -305,12 +308,14 @@ learning_rate = 0.01
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(net.parameters(), lr=learning_rate, momentum=0.9, weight_decay=0.0002)
 
-#================================================================================
+
+# ================================================================================
 
 def imshow(img):
     # img = img / 2 + 0.5  # unnormalize
     npimg = img.numpy()
     plt.imshow(np.transpose(npimg, (1, 2, 0)))
+
 
 images, labels = dataset_test[0]
 num = 0
