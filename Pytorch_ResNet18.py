@@ -3,6 +3,33 @@ from torch import Tensor
 import torch.nn as nn
 from typing import Type, Any, Callable, Union, List, Optional
 from torch.hub import load_state_dict_from_url
+import torch
+import numpy as np
+import sys
+import math
+import random
+from torch.utils.data import Dataset, DataLoader
+from torchvision import transforms, utils
+import os
+import glob
+import seaborn as sn
+import pandas as pd
+import matplotlib.pyplot as plt
+import glob
+import torch
+import numpy as np
+import sys
+import math
+import random
+from torch.utils.data import Dataset, DataLoader
+from torchvision import transforms, utils
+import os
+import glob
+import seaborn as sn
+import pandas as pd
+import matplotlib.pyplot as plt
+import glob
+from PIL import Image, ImageFile
 
 
 
@@ -21,6 +48,46 @@ model_urls = {
     'wide_resnet101_2': 'https://download.pytorch.org/models/wide_resnet101_2-32ee1156.pth',
 }
 
+class CustomDataset(Dataset):
+    def __init__(self, files, labels, augmentation, valid):
+        self.files = files
+        self.labels = labels
+        self.aug = augmentation
+        self.valid = valid
+        self.data = []
+
+        for i in range(len(self.files)):
+            sample = {}
+            sample['img'] = self.files[i]  # Image.open(self.files[i])
+            sample['label'] = labels[i]
+            self.data.append(sample)
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        x = self.data[idx]['img']
+        y = self.data[idx]['label']
+
+        x = Image.open(x)
+        x1 = self.aug(x)
+
+        return {"img": np.array(x1, dtype='float32'), "labels": y}
+
+
+train_transforms = transforms.Compose([
+    transforms.Resize(224),
+    transforms.RandomHorizontalFlip(),
+    transforms.RandomVerticalFlip(),
+    transforms.RandomAffine(45),
+    transforms.ToTensor(),
+    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+])
+test_transforms = transforms.Compose([
+    transforms.Resize(224),
+    transforms.ToTensor(),
+    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+])
 
 def conv3x3(in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1) -> nn.Conv2d:
     """3x3 convolution with padding"""

@@ -53,7 +53,6 @@ class ResNet(nn.Module):
         # 64개의 3x3 필터(filter)를 사용
         self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
-        # self.maxpool = nn.MaxPool2d(kernel_size=3, stride=1, padding=1)
         self.layer1 = self._make_layer(block, 64, number_of_block[0], stride=1)
         self.layer2 = self._make_layer(block, 128, number_of_block[1], stride=2)
         self.layer3 = self._make_layer(block, 256, number_of_block[2], stride=2)
@@ -71,15 +70,12 @@ class ResNet(nn.Module):
     def forward(self, x):
         x = x.float()
         features = F.relu(self.bn1(self.conv1(x)))
-        # out = self.maxpool(out)
         features = self.layer1(features)
         features = self.layer2(features)
         features = self.layer3(features)
         features = self.layer4(features)
 
         out = F.avg_pool2d(features, 32)
-        a = out.size(0)
-        b = out.view(out.size(0), -1)
         out = out.view(out.size(0), -1)
         out = self.linear(out)
         return out, features
@@ -278,8 +274,6 @@ labelimg_Test = torch.from_numpy(labelimg_Test)
 
 batch_size = 10
 print("mk dataset")
-print(RGBimg_Test.size())
-print(int(RGBimg_Test.size()[0] / batch_size))
 
 dataset_test = list(range(int(RGBimg_Test.size()[0] / batch_size)))
 
@@ -294,7 +288,7 @@ dataset_test1 = [RGBimg_Test, labelimg_Test]
 # test
 device = 'cuda'
 net = ResNet18()
-pretrained_dict = torch.load(r'C:\pyResNet\checkpoint\resnet18.pt')
+pretrained_dict = torch.load(r'C:\ProgrammingFiles\Python\pyResNet\checkpoint\resnet18.pt')
 net.load_state_dict(pretrained_dict)
 net.eval()
 
